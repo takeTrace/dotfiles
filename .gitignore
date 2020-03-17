@@ -17,3 +17,15 @@ homedir/.vim/.netrwhist
 homedir/.vim/bundle/*
 !homedir/.vim/bundle/.gitignore
 !homedir/.vim/bundle/Vundle.vim
+# ignore my big files
+mackup/
+.My*/
+网易云音乐/
+iTunes/
+Projects/
+*._gs
+*.gsl
+_gsdata_/
+
+# ignore Private files(note: the files end .private)
+*.private
