@@ -147,17 +147,17 @@ fi
 
 # -------------------------- 配置 SSR 翻墙 -------------------------------
 bot "现在来配置翻墙先..."
-if [ -d "/Applications/ShadowsocksX-NG.app"]; then
+if [ ! -d "/Applications/ShadowsocksX-NG-R.app" ]; then
   running "打开 ss 配置翻墙?"
-  open /Applications/ShadowsocksX-NG.app
+  open /Applications/ShadowsocksX-NG-R.app
 else
   bot "复制 ShadowsocksX-NG-R -> Applications"
   sudo cp -r ./AppsForInitialMacOS/ShadowsocksX-NG-R.app /Applications;ok
   bot "打开 SSR 进行配置"
-  open /Applications/ShadowsocksX-NG.app
+  open /Applications/ShadowsocksX-NG-R.app
 fi
 bot "打开订阅地址, 复制下面的地址到 SSR 中更新服务器并打开代理";
-cat ./AppsForInitialMacOS/ssrSubscribe
+cat ./AppsForInitialMacOS/ssrSubscribe.private
 read -r -p "完成了就直接回车" response
 
 # -------------------------- 配置请求转发到代理端口 --------------------------
@@ -205,14 +205,15 @@ if [[ $? != 0 ]]; then
     if [[ $? != 0 ]]; then
       error "unable to install homebrew, script $0 abort!"
       exit 2
-  fi
-else
+    fi
   ok
+else
   # Make sure we’re using the latest Homebrew
   # 新装电脑刚下的 brew, 这个就不必了....
   # running "updating homebrew"
   # brew update
   # ok
+  bot "已经安装 homebrew"
   # bot "before installing brew packages, we can upgrade any outdated packages."
   # read -r -p "run brew upgrade? [y|N] " response
   # if [[ $response =~ ^(y|yes|Y) ]]; then
@@ -225,17 +226,8 @@ else
   # fi
 fi
 
-#####
-# install brew cask (UI Packages) 新版本的 brew 默认就包含安装了 cask
-#####
-# running "checking brew-cask install"
-# output=$(brew tap | grep cask)
-# if [[ $? != 0 ]]; then
-#   action "installing brew-cask"
-#   require_brew caskroom/cask/brew-cask
-# fi
-# brew tap caskroom/versions > /dev/null 2>&1
-# ok
+export PATH="/usr/local/sbin:$PATH"
+HOMEBREW_NO_AUTO_UPDATE=1
 
 # Just to avoid a potential bug
 mkdir -p ~/Library/Caches/Homebrew/Formula
@@ -243,10 +235,14 @@ brew doctor
 
 
 # -------------------------------- 终端翻墙 --------------------------------
-bot "安装终端代理"
-running "install privoxy..."
-required_brew privoxy
-ok
+privoxy_bin=$(which privoxy) 2>&1 > /dev/null
+if [[ $? != 0 ]]; then
+  action "安装 privoxy 代理"
+  require_brew privoxy
+  ok
+else
+  bot "已经安装过 privoxy 代理"
+fi
 running "config privoxy..."
 echo "listen-address 0.0.0.0:8118" >> /usr/local/etc/privoxy/config
 echo "forward-socks5 / localhost:1086 ." >> /usr/local/etc/privoxy/config
@@ -261,7 +257,7 @@ sudo /usr/local/sbin/privoxy /usr/local/etc/privoxy/config
 # git config --global http.proxy socks5://127.0.0.1:1086
 # git config --global http.https://github.com.proxy socks5://127.0.0.1:1086
 ok
-echo -e "已开启代理"
+echo -e "已开启代理, 代理端口是否可见"
 echo netstat -na | grep 8118
 ok
 ok
@@ -288,7 +284,9 @@ bot "use versions of packages installed with homebrew"
 RUBY_CONFIGURE_OPTS="--with-openssl-dir=`brew --prefix openssl` --with-readline-dir=`brew --prefix readline` --with-libyaml-dir=`brew --prefix libyaml`"
 running "Intall Ruby..."
 require_brew ruby
-# set zsh as the user login shell
+ok
+
+bot "set zsh as the user login shell"
 CURRENTSHELL=$(dscl . -read /Users/$USER UserShell | awk '{print $2}')
 ok
 
@@ -304,9 +302,9 @@ running "Intall Oh My Zsh..."
 sh -c "$(curl -fsSL https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
 ok
 
-if [[ ! -d "./oh-my-zsh/custom/themes/powerlevel9k" ]]; then
-  git clone https://github.com/bhilburn/powerlevel9k.git oh-my-zsh/custom/themes/powerlevel9k
-fi
+# if [[ ! -d "./oh-my-zsh/custom/themes/powerlevel9k" ]]; then
+#   git clone https://github.com/bhilburn/powerlevel9k.git oh-my-zsh/custom/themes/powerlevel9k
+# fi
 
 # bot "creating symlinks for project dotfiles..."
 # pushd homedir > /dev/null 2>&1
@@ -333,24 +331,36 @@ fi
 # popd > /dev/null 2>&1
 
 
-# bot "Installing vim plugins"
-# # cmake is required to compile vim bundle YouCompleteMe
-# # require_brew cmake
-# vim +PluginInstall +qall > /dev/null 2>&1
+bot "VIM Setup"
+read -r -p "Do you want to install vim plugins now? [y|N] " response
+if [[ $response =~ (y|yes|Y) ]];then
+  bot "Installing vim plugins"
+  # cmake is required to compile vim bundle YouCompleteMe
+  # require_brew cmake
+  vim +PluginInstall +qall > /dev/null 2>&1
+  ok
+else
+  ok "skipped. Install by running :PluginInstall within vim"
+fi
 
-bot "installing fonts"
-./fonts/install.sh
-brew tap caskroom/fonts
-require_cask font-fontawesome
-require_cask font-awesome-terminal-fonts
-require_cask font-hack
-require_cask font-inconsolata-dz-for-powerline
-require_cask font-inconsolata-g-for-powerline
-require_cask font-inconsolata-for-powerline
-require_cask font-roboto-mono
-require_cask font-roboto-mono-for-powerline
-require_cask font-source-code-pro
-ok
+read -r -p "Install fonts? [y|N] " response
+if [[ $response =~ (y|yes|Y) ]];then
+  bot "installing fonts"
+  # need fontconfig to install/build fonts
+  require_brew fontconfig
+  ./fonts/install.sh
+  brew tap homebrew/cask-fonts
+  require_cask font-fontawesome
+  require_cask font-awesome-terminal-fonts
+  require_cask font-hack
+  require_cask font-inconsolata-dz-for-powerline
+  require_cask font-inconsolata-g-for-powerline
+  require_cask font-inconsolata-for-powerline
+  require_cask font-roboto-mono
+  require_cask font-roboto-mono-for-powerline
+  require_cask font-source-code-pro
+  ok
+fi
 
 # if [[ -d "/Library/Ruby/Gems/2.0.0" ]]; then
 #   running "Fixing Ruby Gems Directory Permissions"
