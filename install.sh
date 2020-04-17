@@ -15,28 +15,23 @@ source ./lib_sh/requirers.sh
 
 bot "Hi! I'm going to install tooling and tweak your system settings. Here I go..."
 
-# Ask for the administrator password upfront
-bot "获取超级管理员权限"
-if ! sudo grep -q "%wheel		ALL=(ALL) NOPASSWD: ALL #atomantic/dotfiles" "/etc/sudoers"; then
-
-  # Ask for the administrator password upfront
-  bot "I need you to enter your sudo password so I can install some things:"
-  bot "需要 super 权限来安装些东西:"
+# Do we need to ask for sudo password or is it already passwordless?
+grep -q 'NOPASSWD:     ALL' /etc/sudoers.d/$LOGNAME > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+  echo "no suder file"
   sudo -v
 
   # Keep-alive: update existing sudo time stamp until the script has finished
-  bot "保持 sudo 直到脚本结束"
   while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
-
-  # bot "Do you want me to setup this machine to allow you to run sudo without a password?\nPlease read here to see what I am doing:\nhttp://wiki.summercode.com/sudo_without_a_password_in_mac_os_x \n"
-  # bot "需要运行 sudo 而不需要管理员权限密码吗? \n(按照安全考虑, 不建议, 我也不会这么干, 所以默认No了, 风险太大)\n"
 fi
-# --------------------------------- 重写 hosts ---------------------------------
 
-bot "重写 host ---"
+bot "--------------------------------- 重写 hosts ---------------------------------"
 # /etc/hosts
-read -r -p "Overwrite /etc/hosts with the ad-blocking hosts file from someonewhocares.org? (from ./configs/hosts file) 重写 host? [y|N] " response
-if [[ $response =~ (yes|y|Y) ]]; then
+# ###########################################################
+# /etc/hosts -- spyware/ad blocking
+# ###########################################################
+# read -r -p "Overwrite /etc/hosts with the ad-blocking hosts file from someonewhocares.org? (from ./configs/hosts file) [y|N] " response
+# if [[ $response =~ (yes|y|Y) ]];then
     action "cp /etc/hosts /etc/hosts.backup"
     sudo cp /etc/hosts /etc/hosts.backup
     ok
@@ -44,22 +39,25 @@ if [[ $response =~ (yes|y|Y) ]]; then
     sudo cp ./configs/hosts /etc/hosts
     ok
     bot "Your /etc/hosts file has been updated. Last version is saved in /etc/hosts.backup"
-    bot "hosts 文件已经更新, 原host文件保存在 /etc/hosts.backup"
-fi
+# else
+#     ok "skipped";
+# fi
 
 
-# --------------------------------- Git Config ---------------------------------
+bot "--------------------------------- Git Config ---------------------------------"
 
-bot "初始化全局 GitConfig ---"
 
-grep 'user = GITHUBUSER' ./homedir/.gitconfig > /dev/null 2>&1
+# ###########################################################
+# Git Config
+# ###########################################################
+bot "OK, now I am going to update the .gitconfig for your user info:"
+grep 'user = takeTrace' ~/.gitconfig > /dev/null 2>&1
 if [[ $? = 0 ]]; then
-    bot "设置 git 的用户名"
-    read -r -p "设置 git 的用户名 username? " githubuser
+    read -r -p "What is your git username? " githubuser
 
   fullname=`osascript -e "long user name of (system info)"`
 
-  if [[ -n "$fullname" ]]; then
+  if [[ -n "$fullname" ]];then
     lastname=$(echo $fullname | awk '{print $2}');
     firstname=$(echo $fullname | awk '{print $1}');
   fi
@@ -75,7 +73,6 @@ if [[ $? = 0 ]]; then
   if [[ ! "$firstname" ]]; then
     response='n'
   else
-    echo -e "按机器设置的名字来说, 全名是 $COL_YELLOW$firstname $lastname$COL_RESET, 对吗?"
     echo -e "I see that your full name is $COL_YELLOW$firstname $lastname$COL_RESET"
     read -r -p "Is this correct? [Y|n] " response
   fi
@@ -97,7 +94,7 @@ if [[ $? = 0 ]]; then
 
   if [[ $response =~ ^(no|n|N) ]]; then
     read -r -p "What is your email? " email
-    if [[ ! $email ]]; then
+    if [[ ! $email ]];then
       error "you must provide an email to configure .gitconfig"
       exit 1
     fi
@@ -106,63 +103,72 @@ if [[ $? = 0 ]]; then
 
   running "replacing items in .gitconfig with your info ($COL_YELLOW$fullname, $email, $githubuser$COL_RESET)"
 
-  # ------------------------- test if gnu-sed or MacOS sed  -------------------------
+  # test if gnu-sed or MacOS sed
 
   sed -i "s/GITHUBFULLNAME/$firstname $lastname/" ./homedir/.gitconfig > /dev/null 2>&1 | true
   if [[ ${PIPESTATUS[0]} != 0 ]]; then
     echo
     running "looks like you are using MacOS sed rather than gnu-sed, accommodating"
-    sed -i '' "s/GITHUBFULLNAME/$firstname $lastname/" ./homedir/.gitconfig;
-    sed -i '' 's/GITHUBEMAIL/'$email'/' ./homedir/.gitconfig;
-    sed -i '' 's/GITHUBUSER/'$githubuser'/' ./homedir/.gitconfig;
+    sed -i '' "s/GITHUBFULLNAME/$firstname $lastname/" ./homedir/.gitconfig
+    sed -i '' 's/GITHUBEMAIL/'$email'/' ./homedir/.gitconfig
+    sed -i '' 's/GITHUBUSER/'$githubuser'/' ./homedir/.gitconfig
     ok
   else
     echo
     bot "looks like you are already using gnu-sed. woot!"
-    sed -i 's/GITHUBEMAIL/'$email'/' ./homedir/.gitconfig;
-    sed -i 's/GITHUBUSER/'$githubuser'/' ./homedir/.gitconfig;
+    sed -i 's/GITHUBEMAIL/'$email'/' ./homedir/.gitconfig
+    sed -i 's/GITHUBUSER/'$githubuser'/' ./homedir/.gitconfig
   fi
 fi
 
+
 # ------------------------- 换壁纸 -------------------------
-MD5_NEWWP=$(md5 img/wallpaper.jpg | awk '{print $4}')
-MD5_OLDWP=$(md5 /System/Library/CoreServices/DefaultDesktop.jpg | awk '{print $4}')
-if [[ "$MD5_NEWWP" != "$MD5_OLDWP" ]]; then
-  read -r -p "Do you want to use the project's custom desktop wallpaper? [Y|n] " response
-  if [[ $response =~ ^(no|n|N) ]]; then
-    echo "skipping...";
-    ok
-  else
-    running "Set a custom wallpaper image"
-    # fixme: Catalina 初始化的系统找不到这些图片
-    # `DefaultDesktop.jpg` is already a symlink, and
-    rm -rf ~/Library/Application Support/Dock/desktoppicture.db
-    sudo rm -f /System/Library/CoreServices/DefaultDesktop.jpg > /dev/null 2>&1
-    sudo rm -f /Library/Desktop\ Pictures/*.jpg > /dev/null 2>&1
-    sudo cp ./img/wallpaper.jpg /System/Library/CoreServices/DefaultDesktop.jpg;
-    sudo cp ./img/wallpaper.jpg /Library/Desktop\ Pictures/Mojave\ Night.jpg;
-    sudo cp ./img/wallpaper.jpg /Library/Desktop\ Pictures/Mojave\ Day.jpg;ok
-  fi
-fi
+# unavailable in 10.15 Catalina
+# MD5_NEWWP=$(md5 img/wallpaper.jpg | awk '{print $4}')
+# MD5_OLDWP=$(md5 /System/Library/CoreServices/DefaultDesktop.jpg | awk '{print $4}')
+# if [[ "$MD5_NEWWP" != "$MD5_OLDWP" ]]; then
+#   read -r -p "Do you want to use the project's custom desktop wallpaper? [Y|n] " response
+#   if [[ $response =~ ^(no|n|N) ]]; then
+#     echo "skipping...";
+#     ok
+#   else
+#     running "Set a custom wallpaper image"
+#     # fixme: Catalina 初始化的系统找不到这些图片
+#     # `DefaultDesktop.jpg` is already a symlink, and
+#     rm -rf ~/Library/Application Support/Dock/desktoppicture.db
+#     sudo rm -f /System/Library/CoreServices/DefaultDesktop.jpg > /dev/null 2>&1
+#     sudo rm -f /Library/Desktop\ Pictures/*.jpg > /dev/null 2>&1
+#     sudo cp ./img/wallpaper.jpg /System/Library/CoreServices/DefaultDesktop.jpg;
+#     sudo cp ./img/wallpaper.jpg /Library/Desktop\ Pictures/Mojave\ Night.jpg;
+#     sudo cp ./img/wallpaper.jpg /Library/Desktop\ Pictures/Mojave\ Day.jpg;ok
+#   fi
+# fi
 
 # -------------------------- 配置 SSR 翻墙 -------------------------------
 bot "现在来配置翻墙先..."
 if [ ! -d "/Applications/ShadowsocksX-NG-R.app" ]; then
-  running "打开 ss 配置翻墙?"
-  open /Applications/ShadowsocksX-NG-R.app
+bot "复制 ShadowsocksX-NG-R -> Applications"
+  unzip ./AppsForInitialMacOS/ShadowsocksX-NG-R.zip
+  mv ShadowsocksX-NG-R.app /AppsForInitialMac
+  sudo mv ShadowsocksX-NG-R.app /Applications/ShadowsocksX-NG-R.app;
+  ok
+  bot "打开 SSR 进行配置, 请手动打开App 配置"
+  open /Applications
 else
-  bot "复制 ShadowsocksX-NG-R -> Applications"
-  sudo cp -r ./AppsForInitialMacOS/ShadowsocksX-NG-R.app /Applications;ok
-  bot "打开 SSR 进行配置"
-  open /Applications/ShadowsocksX-NG-R.app
+  running "打开 ss 配置翻墙? 请手动打开App 配置"
+  open /Applications
 fi
-bot "打开订阅地址, 复制下面的地址到 SSR 中更新服务器并打开代理";
+bot "打开订阅地址, 复制下面的地址到 SSR 中更新服务器并打开代理, 或者自行导入能用的 json 配置";
 cat ./AppsForInitialMacOS/ssrSubscribe.private
 read -r -p "完成了就直接回车" response
 
 # -------------------------- 配置请求转发到代理端口 --------------------------
 # 经由 ssr:1086 转发请求来翻墙, 可以加快 brew 的安装和下载. (brew 会使用ALL_PROXY走代理)
+echo "export ALL_PROXY=socks5://127.0.0.1:1086"
 export ALL_PROXY=socks5://127.0.0.1:1086
+echo "ALL_PROXY=: "
+echo $ALL_PROXY
+read -r -p "是否配置了? " response
 
 
 # ###########################################################
@@ -190,14 +196,14 @@ if ! xcode-select --print-path &> /dev/null; then
 
     sudo xcodebuild -license
     print_result $? 'Agree with the XCode Command Line Tools licence'
-
+    ok;
 fi
 
 #####
-# install homebrew (CLI Packages)
+# ------------------------------ install homebrew (CLI Packages) ------------------------------
 #####
 
-running "checking homebrew install"
+running "checking homebrew..."
 brew_bin=$(which brew) 2>&1 > /dev/null
 if [[ $? != 0 ]]; then
   action "installing homebrew"
@@ -206,28 +212,34 @@ if [[ $? != 0 ]]; then
       error "unable to install homebrew, script $0 abort!"
       exit 2
     fi
+    brew analytics off
   ok
 else
-  # Make sure we’re using the latest Homebrew
-  # 新装电脑刚下的 brew, 这个就不必了....
-  # running "updating homebrew"
-  # brew update
-  # ok
-  bot "已经安装 homebrew"
-  # bot "before installing brew packages, we can upgrade any outdated packages."
-  # read -r -p "run brew upgrade? [y|N] " response
-  # if [[ $response =~ ^(y|yes|Y) ]]; then
-  #     # Upgrade any already-installed formulae
-  #     action "upgrade brew packages..."
-  #     brew upgrade
-  #     ok "brews updated..."
-  # else
-  #     ok "skipped brew package upgrades.";
-  # fi
+  bot "Homebrew"
+  read -r -p "run brew update && upgrade? [y|N] " response
+  if [[ $response =~ (y|yes|Y) ]]; then
+    action "updating homebrew..."
+    brew update
+    ok "homebrew updated"
+    action "upgrading brew packages..."
+    brew upgrade
+    ok "brews upgraded"
+  else
+    ok "skipped brew package upgrades."
+  fi
 fi
 
-export PATH="/usr/local/sbin:$PATH"
+bot "export PATH=/usr/local/sbin:$PATH";
+export PATH="/usr/local/sbin:$PATH";
+if [ $? != 0 ]; then
+  exit $?
+fi
+
 HOMEBREW_NO_AUTO_UPDATE=1
+echo "HOMEBREW_NO_AUTO_UPDATE = ?"
+echo $HOMEBREW_NO_AUTO_UPDATE
+read -r -p "以上配置是否正确? " response
+
 
 # Just to avoid a potential bug
 mkdir -p ~/Library/Caches/Homebrew/Formula
@@ -239,15 +251,37 @@ privoxy_bin=$(which privoxy) 2>&1 > /dev/null
 if [[ $? != 0 ]]; then
   action "安装 privoxy 代理"
   require_brew privoxy
+  if [ $? != 0 ]; then
+    exit $?
+  fi
   ok
+  bot "写入配置"
+  echo "listen-address 0.0.0.0:8118" >> /usr/local/etc/privoxy/config
+  if [ $? != 0 ]; then
+    exit $?
+  fi
+  echo "forward-socks5 / localhost:1086 ." >> /usr/local/etc/privoxy/config
+  if [ $? != 0 ]; then
+    exit $?
+  fi
 else
-  bot "已经安装过 privoxy 代理"
+  bot "已经安装过 privoxy 代理,  复制配置"
+  sudo cp ./privoxy_config /usr/local/etc/privoxy/config
+  if [ $? != 0 ]; then
+    exit $?
+  fi
+  ok
+  bot "privoxy/config.js tail -10: "
+  sudo tail -5 /usr/local/etc/privoxy/config
 fi
+read -r -p "配置是否写入? " response
+
 running "config privoxy..."
-echo "listen-address 0.0.0.0:8118" >> /usr/local/etc/privoxy/config
-echo "forward-socks5 / localhost:1086 ." >> /usr/local/etc/privoxy/config
+bot "export no_proxy=localhost,127.0.0.1,localaddress,.localdomain.com"
 export no_proxy="localhost,127.0.0.1,localaddress,.localdomain.com";
+bot "export http_proxy=http://127.0.0.1:8118";
 export http_proxy="http://127.0.0.1:8118";
+bot "export https_proxy=$http_proxy";
 export https_proxy=$http_proxy;
 echo -e "已配置代理";
 ok
@@ -257,9 +291,10 @@ sudo /usr/local/sbin/privoxy /usr/local/etc/privoxy/config
 # git config --global http.proxy socks5://127.0.0.1:1086
 # git config --global http.https://github.com.proxy socks5://127.0.0.1:1086
 ok
-echo -e "已开启代理, 代理端口是否可见"
-echo netstat -na | grep 8118
-ok
+# echo -e "已开启代理, 代理端口是否可见"
+echo "$(netstat -na | grep 8118)"
+echo "$(ps -ef | grep privoxy)"
+read -r -p "已开启代理, 代理端口是否可见" response
 ok
 
 # ------------------------------ 配置 bash, 安装 git/zsh/ruby ------------------------------
@@ -272,8 +307,6 @@ ok
 # skip those GUI clients, git command-line all the way
 running "Intall Git..."
 require_brew git
-# need fontconfig to install/build fonts
-# require_brew fontconfig
 # update zsh to latest
 running "Intall Zsh..."
 require_brew zsh
@@ -298,38 +331,33 @@ if [[ "$CURRENTSHELL" != "/usr/local/bin/zsh" ]]; then
   ok
 fi
 
-running "Intall Oh My Zsh..."
-sh -c "$(curl -fsSL https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
-ok
+bot "Dotfiles Setup"
+read -r -p "symlink ./homedir/* files in ~/ (these are the dotfiles)? [y|N] " response
+if [[ $response =~ (y|yes|Y) ]]; then
+  bot "creating symlinks for project dotfiles..."
+  pushd homedir > /dev/null 2>&1
+  now=$(date +"%Y.%m.%d.%H.%M.%S")
 
-# if [[ ! -d "./oh-my-zsh/custom/themes/powerlevel9k" ]]; then
-#   git clone https://github.com/bhilburn/powerlevel9k.git oh-my-zsh/custom/themes/powerlevel9k
-# fi
+  for file in .*; do
+    if [[ $file == "." || $file == ".." ]]; then
+      continue
+    fi
+    running "~/$file"
+    # if the file exists:
+    if [[ -e ~/$file ]]; then
+        mkdir -p ~/.dotfiles_backup/$now
+        mv ~/$file ~/.dotfiles_backup/$now/$file
+        echo "backup saved as ~/.dotfiles_backup/$now/$file"
+    fi
+    # symlink might still exist
+    unlink ~/$file > /dev/null 2>&1
+    # create the link
+    ln -s ~/.dotfiles/homedir/$file ~/$file
+    echo -en '\tlinked';ok
+  done
 
-# bot "creating symlinks for project dotfiles..."
-# pushd homedir > /dev/null 2>&1
-# now=$(date +"%Y.%m.%d.%H.%M.%S")
-
-# for file in .*; do
-#   if [[ $file == "." || $file == ".." ]]; then
-#     continue
-#   fi
-#   running "~/$file"
-#   # if the file exists:
-#   if [[ -e ~/$file ]]; then
-#       mkdir -p ~/.dotfiles_backup/$now
-#       mv ~/$file ~/.dotfiles_backup/$now/$file
-#       echo "backup saved as ~/.dotfiles_backup/$now/$file"
-#   fi
-#   # symlink might still exist
-#   unlink ~/$file > /dev/null 2>&1
-#   # create the link
-#   ln -s ~/.dotfiles/homedir/$file ~/$file
-#   echo -en '\tlinked';ok
-# done
-
-# popd > /dev/null 2>&1
-
+  popd > /dev/null 2>&1
+fi
 
 bot "VIM Setup"
 read -r -p "Do you want to install vim plugins now? [y|N] " response
@@ -394,20 +422,19 @@ ok
 
 #  上面的脚本里设置了必须装的, brewfile 不一定适合每个机器
 # bot "Now checking Brewfile for brew install..."
-# if [ -e "~/Brewfile"]; then
-#   read -r -p "发现有 brewfile, 编辑后直接回车使用 brewfile 安装 " response
-#   running "Use Brewfile"
-#   brew bundle
-#   ok
-# else
-#   bot "No Brewfile"
-# fi
 
 running "cleanup homebrew"
 brew cleanup --force > /dev/null 2>&1
 rm -f -r /Library/Caches/Homebrew/* > /dev/null 2>&1
 ok
 
+bot "OS Configuration"
+read -r -p "Do you want to update the system configurations? [y|N] " response
+if [[ -z $response || $response =~ ^(n|N) ]]; then
+  open /Applications/iTerm.app
+  bot "All done"
+  exit
+fi
 
 ###############################################################################
 bot "Configuring General System UI/UX..."
@@ -532,9 +559,10 @@ sudo defaults write /Library/Preferences/com.apple.loginwindow GuestEnabled -boo
 # SSD-specific tweaks                                                         #
 ###############################################################################
 
+# disablelocal is no longer used, check man tmutil for more info
 # 禁用 本地磁盘 Time Machine 快照
-running "Disable local Time Machine snapshots"
-sudo tmutil disablelocal;ok
+# running "Disable local Time Machine snapshots"
+# sudo tmutil disablelocal;ok
 
 # running "Disable hibernation (speeds up entering sleep mode)"
 # sudo pmset -a hibernatemode 0;ok
@@ -548,8 +576,8 @@ running "…and make sure it can’t be rewritten"
 sudo chflags uchg /Private/var/vm/sleepimage;ok
 
 # 禁用摇晃感应器
-running "Disable the sudden motion sensor as it’s not useful for SSDs"
-sudo pmset -a sms 0;ok
+# running "Disable the sudden motion sensor as it’s not useful for SSDs"
+# sudo pmset -a sms 0;ok
 
 ################################################
 # Optional / Experimental                      #
@@ -560,6 +588,25 @@ sudo pmset -a sms 0;ok
 # sudo scutil --set HostName "antic"
 # sudo scutil --set LocalHostName "antic"
 # sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "antic"
+
+#setting up the computer label & name
+# read -p "What is this machine's label (Example: Paul's MacBook Pro ) ? " mac_os_label
+# if [[ -z "$mac_os_label" ]]; then
+#   echo "ERROR: Invalid MacOS label."
+#   exit 1
+# fi
+
+# read -p "What is this machine's name (Example: paul-macbook-pro ) ? " mac_os_name
+# if [[ -z "$mac_os_name" ]]; then
+#   echo "ERROR: Invalid MacOS name."
+#   exit 1
+# fi
+
+# echo "Setting system Label and Name..."
+# sudo scutil --set ComputerName "$mac_os_label"
+# sudo scutil --set HostName "$mac_os_name"
+# sudo scutil --set LocalHostName "$mac_os_name"
+# sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "$mac_os_name"
 
 # running "Disable smooth scrolling"
 # (Uncomment if you’re on an older Mac that messes up the animation)
@@ -591,10 +638,9 @@ sudo pmset -a sms 0;ok
 # file=/Applications/Dropbox.app/Contents/Resources/emblem-dropbox-uptodate.icns
 # [ -e "${file}" ] && mv -f "${file}" "${file}.bak";ok
 
-# running "Wipe all (default) app icons from the Dock"
+running "Wipe all (default) app icons from the Dock(移除所有驻留 Dock 的 APP)"
 # # This is only really useful when setting up a new Mac, or if you don’t use
 # the Dock to launch apps.
-# 移除所有驻留 Dock 的 APP
 defaults write com.apple.dock persistent-apps -array "";ok
 
 # 设置桌面不显示"桌面文件夹"的东西
@@ -620,8 +666,8 @@ running "always boot in verbose mode (not MacOS GUI mode)"
 sudo nvram boot-args="-v";ok
 
 # 允许 'locate' 命令
-running "allow 'locate' command"
-sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.locate.plist > /dev/null 2>&1;ok
+# running "allow 'locate' command"
+# sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.locate.plist > /dev/null 2>&1;ok
 
 # running "Set standby delay to 24 hours (default is 1 hour)"
 # sudo pmset -a standbydelay 86400;ok
@@ -631,8 +677,8 @@ running "Disable the sound effects on boot"
 sudo nvram SystemAudioVolume=" ";ok
 
 # 禁用 menubar 透明
-running "Menu bar: disable transparency"
-defaults write NSGlobalDomain AppleEnableMenuBarTransparency -bool false;ok
+# running "Menu bar: disable transparency"
+# defaults write NSGlobalDomain AppleEnableMenuBarTransparency -bool false;ok
 
 running "Menu bar: hide the Time Machine, Volume, User, and Bluetooth icons"
 for domain in ~/Library/Preferences/ByHost/com.apple.systemuiserver.*; do
@@ -648,7 +694,7 @@ defaults write com.apple.systemuiserver menuExtras -array \
   "/System/Library/CoreServices/Menu Extras/Clock.menu"
 ok
 
-# running "Set highlight color to green"
+# running "Set highlight color to green"      // No, never for me ......
 # defaults write NSGlobalDomain AppleHighlightColor -string "0.764700 0.976500 0.568600";ok
 # 设置边栏图标大小为中等
 running "Set sidebar icon size to medium"
@@ -659,17 +705,17 @@ defaults write NSGlobalDomain NSTableViewDefaultSizeMode -int 2;ok
 # Possible values: `WhenScrolling`, `Automatic` and `Always`
 
 # 加速窗口大小调整速度
-running "Increase window resize speed for Cocoa applications"
-defaults write NSGlobalDomain NSWindowResizeTime -float 0.005;ok
+# running "Increase window resize speed for Cocoa applications"
+# defaults write NSGlobalDomain NSWindowResizeTime -float 0.005;ok
 
 # 将保存选项设置为默认
 running "Expand save panel by default"
 defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true
 defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true;ok
 
-# running "Expand print panel by default"
-# defaults write NSGlobalDomain PMPrintingExpandedStateForPrint -bool true
-# defaults write NSGlobalDomain PMPrintingExpandedStateForPrint2 -bool true;ok
+running "Expand print panel by default"
+defaults write NSGlobalDomain PMPrintingExpandedStateForPrint -bool true
+defaults write NSGlobalDomain PMPrintingExpandedStateForPrint2 -bool true;ok
 
 # 默认保存到磁盘(而非 iCloud)
 running "Save to disk (not to iCloud) by default"
@@ -679,18 +725,22 @@ defaults write NSGlobalDomain NSDocumentSaveNewDocumentsToCloud -bool false;ok
 running "Automatically quit printer app once the print jobs complete"
 defaults write com.apple.print.PrintingPrefs "Quit When Finished" -bool true;ok
 
-# running "Disable the “Are you sure you want to open this application?” dialog"
-# defaults write com.apple.LaunchServices LSQuarantine -bool false;ok
+running "Disable the “Are you sure you want to open this application?” dialog"
+defaults write com.apple.LaunchServices LSQuarantine -bool false;ok
+
+# https://github.com/atomantic/dotfiles/issues/30#issuecomment-514589462
+#running "Remove duplicates in the “Open With” menu (also see 'lscleanup' alias)"
+#/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user;ok
 
 # running "Display ASCII control characters using caret notation in standard text views"
-# Try e.g. `cd /tmp; unidecode "\x{0000}" > cc.txt; open -e cc.txt`
+# # Try e.g. `cd /tmp; unidecode "\x{0000}" > cc.txt; open -e cc.txt`
 # defaults write NSGlobalDomain NSTextShowsControlCharacters -bool true;ok
 
-# running "Disable automatic termination of inactive apps"
-# defaults write NSGlobalDomain NSDisableAutomaticTermination -bool true;ok
+running "Disable automatic termination of inactive apps"
+defaults write NSGlobalDomain NSDisableAutomaticTermination -bool true;ok
 
-# running "Disable the crash reporter"
-# defaults write com.apple.CrashReporter DialogType -string "none";ok
+running "Disable the crash reporter"
+defaults write com.apple.CrashReporter DialogType -string "none";ok
 
 # running "Set Help Viewer windows to non-floating mode"
 # defaults write com.apple.helpviewer DevMode -bool true;ok
@@ -714,6 +764,7 @@ sudo defaults write /Library/Preferences/com.apple.loginwindow AdminHostInfo Hos
 # 输入时禁用智能引号
 running "Disable smart quotes as they’re annoying when typing code"
 defaults write NSGlobalDomain NSAutomaticQuoteSubstitutionEnabled -bool false;ok
+
 # 输入时禁用 智能dash 号
 running "Disable smart dashes as they’re annoying when typing code"
 defaults write NSGlobalDomain NSAutomaticDashSubstitutionEnabled -bool false;ok
@@ -724,10 +775,10 @@ bot "Trackpad, mouse, keyboard, Bluetooth accessories, and input"
 ###############################################################################
 
 # 触摸板: 登录面板和这个用户操作开启轻触点击
-running "Trackpad: enable tap to click for this user and for the login screen"
-defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true
-defaults -currentHost write NSGlobalDomain com.apple.mouse.tapBehavior -int 1
-defaults write NSGlobalDomain com.apple.mouse.tapBehavior -int 1;ok
+# running "Trackpad: enable tap to click for this user and for the login screen"
+# defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true
+# defaults -currentHost write NSGlobalDomain com.apple.mouse.tapBehavior -int 1
+# defaults write NSGlobalDomain com.apple.mouse.tapBehavior -int 1;ok
 
 # running "Trackpad: map bottom right corner to right-click"
 # defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad TrackpadCornerSecondaryClick -int 2
@@ -751,8 +802,8 @@ defaults write NSGlobalDomain AppleKeyboardUIMode -int 3;ok
 # defaults write com.apple.universalaccess HIDScrollZoomModifierMask -int 262144;ok
 
 # 禁止缩放时键盘聚焦
-running "Follow the keyboard focus while zoomed in"
-defaults write com.apple.universalaccess closeViewZoomFollowsFocus -bool true;ok
+# running "Follow the keyboard focus while zoomed in"
+# defaults write com.apple.universalaccess closeViewZoomFollowsFocus -bool true;ok
 
 # 重复键入时禁止等待时间(加快按键速度)
 running "Disable press-and-hold for keys in favor of key repeat"
@@ -763,11 +814,11 @@ defaults write NSGlobalDomain KeyRepeat -int 2
 defaults write NSGlobalDomain InitialKeyRepeat -int 10;ok
 
 # 设置语言合文本格式
-running "Set language and text formats (english/US)"
-defaults write NSGlobalDomain AppleLanguages -array "en"
-defaults write NSGlobalDomain AppleLocale -string "en_US@currency=USD"
-defaults write NSGlobalDomain AppleMeasurementUnits -string "Centimeters"
-defaults write NSGlobalDomain AppleMetricUnits -bool true;ok
+# running "Set language and text formats (english/US)"
+# defaults write NSGlobalDomain AppleLanguages -array "en"
+# defaults write NSGlobalDomain AppleLocale -string "en_US@currency=USD"
+# defaults write NSGlobalDomain AppleMeasurementUnits -string "Centimeters"
+# defaults write NSGlobalDomain AppleMetricUnits -bool true;ok
 
 # running "Disable auto-correct"
 # defaults write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false;ok
@@ -793,8 +844,8 @@ defaults write com.apple.screencapture type -string "png";ok
 running "Disable shadow in screenshots"
 defaults write com.apple.screencapture disable-shadow -bool true;ok
 
-# running "Enable subpixel font rendering on non-Apple LCDs"
-# defaults write NSGlobalDomain AppleFontSmoothing -int 2;ok
+running "Enable subpixel font rendering on non-Apple LCDs"
+defaults write NSGlobalDomain AppleFontSmoothing -int 2;ok
 
 running "Enable HiDPI display modes (requires restart)"
 sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true;ok
@@ -808,13 +859,13 @@ defaults write com.apple.finder _FXSortFoldersFirst -bool true
 # running "Allow quitting via ⌘ + Q; doing so will also hide desktop icons"
 # defaults write com.apple.finder QuitMenuItem -bool true;ok
 
-# running "Disable window animations and Get Info animations"
-# defaults write com.apple.finder DisableAllAnimations -bool true;ok
+running "Disable window animations and Get Info animations"
+defaults write com.apple.finder DisableAllAnimations -bool true;ok
 
-# running "Set Desktop as the default location for new Finder windows"
+running "Set Desktop as the default location for new Finder windows"
 # For other paths, use 'PfLo' and 'file:///full/path/here/'
-# defaults write com.apple.finder NewWindowTarget -string "PfDe"
-# defaults write com.apple.finder NewWindowTargetPath -string "file://${HOME}/Desktop/";ok
+defaults write com.apple.finder NewWindowTarget -string "PfDe"
+defaults write com.apple.finder NewWindowTargetPath -string "file://${HOME}/Downloads/";ok
 
 running "Show hidden files by default"
 defaults write com.apple.finder AppleShowAllFiles -bool true;ok
@@ -872,9 +923,10 @@ defaults write com.apple.finder EmptyTrashSecurely -bool true;ok
 running "Enable AirDrop over Ethernet and on unsupported Macs running Lion"
 defaults write com.apple.NetworkBrowser BrowseAllInterfaces -bool true;ok
 
+# Issue on macOS Mojave, for more info
+# check https://github.com/mathiasbynens/dotfiles/issues/865
 # running "Show the ~/Library folder"
 # chflags nohidden ~/Library;ok
-
 
 running "Expand the following File Info panes: “General”, “Open with”, and “Sharing & Permissions”"
 defaults write com.apple.finder FXInfoPanesExpanded -dict \
@@ -979,17 +1031,19 @@ defaults write com.apple.Safari HomePage -string "about:blank";ok
 running "Prevent Safari from opening ‘safe’ files automatically after downloading"
 defaults write com.apple.Safari AutoOpenSafeDownloads -bool false;ok
 
-running "Allow hitting the Backspace key to go to the previous page in history"
-defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2BackspaceKeyNavigationEnabled -bool true;ok
+# TODO : doesn't work on macOS Mojave,
+# check for more info : https://apple.stackexchange.com/questions/338313/how-can-i-enable-backspace-to-go-back-in-safari-on-mojave
+# running "Allow hitting the Backspace key to go to the previous page in history"
+# defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2BackspaceKeyNavigationEnabled -bool true;ok
 
-running "Hide Safari’s bookmarks bar by default"
-defaults write com.apple.Safari ShowFavoritesBar -bool false;ok
+# running "Hide Safari’s bookmarks bar by default"
+# defaults write com.apple.Safari ShowFavoritesBar -bool false;ok
 
-running "Hide Safari’s sidebar in Top Sites"
-defaults write com.apple.Safari ShowSidebarInTopSites -bool false;ok
+# running "Hide Safari’s sidebar in Top Sites"
+# defaults write com.apple.Safari ShowSidebarInTopSites -bool false;ok
 
-running "Disable Safari’s thumbnail cache for History and Top Sites"
-defaults write com.apple.Safari DebugSnapshotsUpdatePolicy -int 2;ok
+# running "Disable Safari’s thumbnail cache for History and Top Sites"
+# defaults write com.apple.Safari DebugSnapshotsUpdatePolicy -int 2;ok
 
 running "Enable Safari’s debug menu"
 defaults write com.apple.Safari IncludeInternalDebugMenu -bool true;ok
@@ -997,8 +1051,8 @@ defaults write com.apple.Safari IncludeInternalDebugMenu -bool true;ok
 running "Make Safari’s search banners default to Contains instead of Starts With"
 defaults write com.apple.Safari FindOnPageMatchesWordStartsOnly -bool false;ok
 
-running "Remove useless icons from Safari’s bookmarks bar"
-defaults write com.apple.Safari ProxiesInBookmarksBar "()";ok
+# running "Remove useless icons from Safari’s bookmarks bar"
+# defaults write com.apple.Safari ProxiesInBookmarksBar "()";ok
 
 running "Enable the Develop menu and the Web Inspector in Safari"
 defaults write com.apple.Safari IncludeDevelopMenu -bool true
@@ -1013,9 +1067,9 @@ bot "Configuring Mail"
 ###############################################################################
 
 
-# running "Disable send and reply animations in Mail.app"
-# defaults write com.apple.mail DisableReplyAnimations -bool true
-# defaults write com.apple.mail DisableSendAnimations -bool true;ok
+running "Disable send and reply animations in Mail.app"
+defaults write com.apple.mail DisableReplyAnimations -bool true
+defaults write com.apple.mail DisableSendAnimations -bool true;ok
 
 running "Copy email addresses as 'foo@example.com' instead of 'Foo Bar <foo@example.com>' in Mail.app"
 defaults write com.apple.mail AddressesIncludeNameOnPasteboard -bool false;ok
@@ -1041,40 +1095,45 @@ bot "Spotlight"
 # running "Hide Spotlight tray-icon (and subsequent helper)"
 # sudo chmod 600 /System/Library/CoreServices/Search.bundle/Contents/MacOS/Search;ok
 
-running "Disable Spotlight indexing for any volume that gets mounted and has not yet been indexed"
+# Issue on macOS Mojave :
+# Rich Trouton covers the move of /Volumes to no longer being world writable as of Sierra (10.12)
+# https://derflounder.wordpress.com/2016/09/21/macos-sierras-volumes-folder-is-no-longer-world-writable
+
+# running "Disable Spotlight indexing for any volume that gets mounted and has not yet been indexed"
 # Use `sudo mdutil -i off "/Volumes/foo"` to stop indexing any volume.
-sudo defaults write /.Spotlight-V100/VolumeConfiguration Exclusions -array "/Volumes";ok
-running "Change indexing order and disable some file types from being indexed"
-defaults write com.apple.spotlight orderedItems -array \
-  '{"enabled" = 1;"name" = "APPLICATIONS";}' \
-  '{"enabled" = 1;"name" = "SYSTEM_PREFS";}' \
-  '{"enabled" = 1;"name" = "DIRECTORIES";}' \
-  '{"enabled" = 1;"name" = "PDF";}' \
-  '{"enabled" = 1;"name" = "FONTS";}' \
-  '{"enabled" = 0;"name" = "DOCUMENTS";}' \
-  '{"enabled" = 0;"name" = "MESSAGES";}' \
-  '{"enabled" = 0;"name" = "CONTACT";}' \
-  '{"enabled" = 0;"name" = "EVENT_TODO";}' \
-  '{"enabled" = 0;"name" = "IMAGES";}' \
-  '{"enabled" = 0;"name" = "BOOKMARKS";}' \
-  '{"enabled" = 0;"name" = "MUSIC";}' \
-  '{"enabled" = 0;"name" = "MOVIES";}' \
-  '{"enabled" = 0;"name" = "PRESENTATIONS";}' \
-  '{"enabled" = 0;"name" = "SPREADSHEETS";}' \
-  '{"enabled" = 0;"name" = "SOURCE";}';ok
-running "Load new settings before rebuilding the index"
-killall mds > /dev/null 2>&1;ok
-running "Make sure indexing is enabled for the main volume"
-sudo mdutil -i on / > /dev/null;ok
-#running "Rebuild the index from scratch"
-#sudo mdutil -E / > /dev/null;ok
+# sudo defaults write /.Spotlight-V100/VolumeConfiguration Exclusions -array "/Volumes";ok
+
+# running "Change indexing order and disable some file types from being indexed"
+# defaults write com.apple.spotlight orderedItems -array \
+#   '{"enabled" = 1;"name" = "APPLICATIONS";}' \
+#   '{"enabled" = 1;"name" = "SYSTEM_PREFS";}' \
+#   '{"enabled" = 1;"name" = "DIRECTORIES";}' \
+#   '{"enabled" = 1;"name" = "PDF";}' \
+#   '{"enabled" = 1;"name" = "FONTS";}' \
+#   '{"enabled" = 0;"name" = "DOCUMENTS";}' \
+#   '{"enabled" = 0;"name" = "MESSAGES";}' \
+#   '{"enabled" = 0;"name" = "CONTACT";}' \
+#   '{"enabled" = 0;"name" = "EVENT_TODO";}' \
+#   '{"enabled" = 0;"name" = "IMAGES";}' \
+#   '{"enabled" = 0;"name" = "BOOKMARKS";}' \
+#   '{"enabled" = 0;"name" = "MUSIC";}' \
+#   '{"enabled" = 0;"name" = "MOVIES";}' \
+#   '{"enabled" = 0;"name" = "PRESENTATIONS";}' \
+#   '{"enabled" = 0;"name" = "SPREADSHEETS";}' \
+#   '{"enabled" = 0;"name" = "SOURCE";}';ok
+# running "Load new settings before rebuilding the index"
+# killall mds > /dev/null 2>&1;ok
+# running "Make sure indexing is enabled for the main volume"
+# sudo mdutil -i on / > /dev/null;ok
+# #running "Rebuild the index from scratch"
+# #sudo mdutil -E / > /dev/null;ok
 
 ###############################################################################
 bot "Terminal & iTerm2"
 ###############################################################################
 
-running "Only use UTF-8 in Terminal.app"
-defaults write com.apple.terminal StringEncodings -array 4;ok
+# running "Only use UTF-8 in Terminal.app"
+# defaults write com.apple.terminal StringEncodings -array 4;ok
 #
 # running "Use a modified version of the Solarized Dark theme by default in Terminal.app"
 # TERM_PROFILE='Solarized Dark xterm-256color';
@@ -1086,38 +1145,39 @@ defaults write com.apple.terminal StringEncodings -array 4;ok
 # 	defaults write com.apple.terminal 'Startup Window Settings' -string "${TERM_PROFILE}";
 # fi;
 
-running "Enable “focus follows mouse” for Terminal.app and all X11 apps"
+# running "Enable “focus follows mouse” for Terminal.app and all X11 apps"
 # i.e. hover over a window and start `typing in it without clicking first
 defaults write com.apple.terminal FocusFollowsMouse -bool true
 #defaults write org.x.X11 wm_ffm -bool true;ok
-# running "Installing the Solarized Light theme for iTerm (opening file)"
-# open "./configs/Solarized Light.itermcolors";ok
-# running "Installing the Patched Solarized Dark theme for iTerm (opening file)"
-# open "./configs/Solarized Dark Patch.itermcolors";ok
+
+running "Installing the Solarized Light theme for iTerm (opening file)"
+open "./configs/Solarized Light.itermcolors";ok
+running "Installing the Patched Solarized Dark theme for iTerm (opening file)"
+open "./configs/Solarized Dark Patch.itermcolors";ok
 
 running "Don’t display the annoying prompt when quitting iTerm"
 defaults write com.googlecode.iterm2 PromptOnQuit -bool false;ok
 # running "hide tab title bars"
 # defaults write com.googlecode.iterm2 HideTab -bool true;ok
-# running "set system-wide hotkey to show/hide iterm with ^\`"
-# defaults write com.googlecode.iterm2 Hotkey -bool true;ok
+running "set system-wide hotkey to show/hide iterm with ^\`"
+defaults write com.googlecode.iterm2 Hotkey -bool true;ok
 # running "hide pane titles in split panes"
 # defaults write com.googlecode.iterm2 ShowPaneTitles -bool false;ok
-# running "animate split-terminal dimming"
-# defaults write com.googlecode.iterm2 AnimateDimming -bool true;ok
-# defaults write com.googlecode.iterm2 HotkeyChar -int 96;
-# defaults write com.googlecode.iterm2 HotkeyCode -int 50;
-# defaults write com.googlecode.iterm2 FocusFollowsMouse -int 1;
-# defaults write com.googlecode.iterm2 HotkeyModifiers -int 262401;
-# running "Make iTerm2 load new tabs in the same directory"
-# /usr/libexec/PlistBuddy -c "set \"New Bookmarks\":0:\"Custom Directory\" Recycle" ~/Library/Preferences/com.googlecode.iterm2.plist
-# running "setting fonts"
-# defaults write com.googlecode.iterm2 "Normal Font" -string "Hack-Regular 12";
-# defaults write com.googlecode.iterm2 "Non Ascii Font" -string "RobotoMonoForPowerline-Regular 12";
-# ok
-# running "reading iterm settings"
-# defaults read -app iTerm > /dev/null 2>&1;
-# ok
+running "animate split-terminal dimming"
+defaults write com.googlecode.iterm2 AnimateDimming -bool true;ok
+defaults write com.googlecode.iterm2 HotkeyChar -int 96;
+defaults write com.googlecode.iterm2 HotkeyCode -int 50;
+defaults write com.googlecode.iterm2 FocusFollowsMouse -int 1;
+defaults write com.googlecode.iterm2 HotkeyModifiers -int 262401;
+running "Make iTerm2 load new tabs in the same directory"
+/usr/libexec/PlistBuddy -c "set \"New Bookmarks\":0:\"Custom Directory\" Recycle" ~/Library/Preferences/com.googlecode.iterm2.plist
+running "setting fonts"
+defaults write com.googlecode.iterm2 "Normal Font" -string "Hack-Regular 12";
+defaults write com.googlecode.iterm2 "Non Ascii Font" -string "RobotoMonoForPowerline-Regular 12";
+ok
+running "reading iterm settings"
+defaults read -app iTerm > /dev/null 2>&1;
+ok
 
 ###############################################################################
 bot "Time Machine"
@@ -1126,8 +1186,8 @@ bot "Time Machine"
 running "Prevent Time Machine from prompting to use new hard drives as backup volume"
 defaults write com.apple.TimeMachine DoNotOfferNewDisksForBackup -bool true;ok
 
-running "Disable local Time Machine backups"
-hash tmutil &> /dev/null && sudo tmutil disablelocal;ok
+# running "Disable local Time Machine backups"
+# hash tmutil &> /dev/null && sudo tmutil disablelocal;ok
 
 ###############################################################################
 bot "Activity Monitor"
@@ -1139,12 +1199,58 @@ defaults write com.apple.ActivityMonitor OpenMainWindow -bool true;ok
 running "Visualize CPU usage in the Activity Monitor Dock icon"
 defaults write com.apple.ActivityMonitor IconType -int 5;ok
 
+# Show processes in Activity Monitor
+# 100: All Processes
+# 101: All Processes, Hierarchally
+# 102: My Processes
+# 103: System Processes
+# 104: Other User Processes
+# 105: Active Processes
+# 106: Inactive Processes
+# 106: Inactive Processes
+# 107: Windowed Processes
 running "Show all processes in Activity Monitor"
-defaults write com.apple.ActivityMonitor ShowCategory -int 0;ok
+defaults write com.apple.ActivityMonitor ShowCategory -int 100;ok
 
 running "Sort Activity Monitor results by CPU usage"
 defaults write com.apple.ActivityMonitor SortColumn -string "CPUUsage"
 defaults write com.apple.ActivityMonitor SortDirection -int 0;ok
+
+running "Set columns for each tab"
+defaults write com.apple.ActivityMonitor "UserColumnsPerTab v5.0" -dict \
+    '0' '( Command, CPUUsage, CPUTime, Threads, PID, UID, Ports )' \
+    '1' '( Command, ResidentSize, Threads, Ports, PID, UID,  )' \
+    '2' '( Command, PowerScore, 12HRPower, AppSleep, UID, powerAssertion )' \
+    '3' '( Command, bytesWritten, bytesRead, Architecture, PID, UID, CPUUsage )' \
+    '4' '( Command, txBytes, rxBytes, PID, UID, txPackets, rxPackets, CPUUsage )';ok
+
+running "Sort columns in each tab"
+defaults write com.apple.ActivityMonitor UserColumnSortPerTab -dict \
+    '0' '{ direction = 0; sort = CPUUsage; }' \
+    '1' '{ direction = 0; sort = ResidentSize; }' \
+    '2' '{ direction = 0; sort = 12HRPower; }' \
+    '3' '{ direction = 0; sort = bytesWritten; }' \
+    '4' '{ direction = 0; sort = txBytes; }';ok
+
+running "Update refresh frequency (in seconds)"
+# 1: Very often (1 sec)
+# 2: Often (2 sec)
+# 5: Normally (5 sec)
+defaults write com.apple.ActivityMonitor UpdatePeriod -int 2;ok
+
+running "Show Data in the Disk graph (instead of IO)"
+defaults write com.apple.ActivityMonitor DiskGraphType -int 1;ok
+
+running "Show Data in the Network graph (instead of packets)"
+defaults write com.apple.ActivityMonitor NetworkGraphType -int 1;ok
+
+running "Change Dock Icon"
+# 0: Application Icon
+# 2: Network Usage
+# 3: Disk Activity
+# 5: CPU Usage
+# 6: CPU History
+defaults write com.apple.ActivityMonitor IconType -int 3;ok
 
 ###############################################################################
 bot "Address Book, Dashboard, iCal, TextEdit, and Disk Utility"
@@ -1180,29 +1286,21 @@ defaults write com.apple.appstore ShowDebugMenu -bool true;ok
 bot "Messages"
 ###############################################################################
 
-running "Disable automatic emoji substitution (i.e. use plain text smileys)"
-defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "automaticEmojiSubstitutionEnablediMessage" -bool false;ok
+# running "Disable automatic emoji substitution (i.e. use plain text smileys)"
+# defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "automaticEmojiSubstitutionEnablediMessage" -bool false;ok
 
-running "Disable smart quotes as it’s annoying for messages that contain code"
-defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "automaticQuoteSubstitutionEnabled" -bool false;ok
+# running "Disable smart quotes as it’s annoying for messages that contain code"
+# defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "automaticQuoteSubstitutionEnabled" -bool false;ok
 
-running "Disable continuous spell checking"
-defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "continuousSpellCheckingEnabled" -bool false;ok
+# running "Disable continuous spell checking"
+# defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "continuousSpellCheckingEnabled" -bool false;ok
 
-# ###############################################################################
-# bot "SizeUp.app"
-# ###############################################################################
-
-# running "Start SizeUp at login"
-# defaults write com.irradiatedsoftware.SizeUp StartAtLogin -bool true;ok
-
-# running "Don’t show the preferences window on next start"
-# defaults write com.irradiatedsoftware.SizeUp ShowPrefsOnNextStart -bool false;ok
-
+read -r -p "是否要重启? killAll ?" response
 killall cfprefsd
 
-running "Remove duplicates in the “Open With” menu (also see 'lscleanup' alias)"
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user;ok
+read -r -p "打开iTerm?" response
+open /Applications/iTerm.app
+
 
 ###############################################################################
 # Kill affected applications                                                  #
@@ -1214,8 +1312,9 @@ for app in "Activity Monitor" "Address Book" "Calendar" "Contacts" "cfprefsd" \
   killall "${app}" > /dev/null 2>&1
 done
 
+brew update && brew upgrade && brew cleanup
 
-bot "Woot! All done. Kill this terminal and launch iTerm"
+bot "Woot! All done. "
 
 # 下面是当初始化完成后需要自己设置对的软件和配置
 
