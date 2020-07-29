@@ -1,4 +1,13 @@
 rsync --exclude "_gsdata_/" \
 		--exclude ".DS_Store" \
-		--exclude "mackup" \
+		--exclude "mackup/.BackupToCloud" \
+		--exclude "mackup/.Sync" \
+		--exclude "mackup/.SyncWithCloud" \
+		--exclude "mackup/Back2harddisk" \
+		--exclude "mackup/Back" \
+		--exclude "mackup/Documents" \
+		--exclude "mackup/Movies" \
+		--exclude "mackup/Music" \
+		--exclude "mackup/Pictures" \
+		--exclude "mackup/Projects" \
 		-avh --no-perms . ~/.dotfiles;
