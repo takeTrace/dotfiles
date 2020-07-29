@@ -166,8 +166,7 @@ read -r -p "完成了就直接回车" response
 # 经由 ssr:1086 转发请求来翻墙, 可以加快 brew 的安装和下载. (brew 会使用ALL_PROXY走代理)
 echo "export ALL_PROXY=socks5://127.0.0.1:1086"
 export ALL_PROXY=socks5://127.0.0.1:1086
-echo "ALL_PROXY=: "
-echo $ALL_PROXY
+echo "ALL_PROXY=: $ALL_PROXY"
 read -r -p "是否配置了? " response
 
 
@@ -236,8 +235,7 @@ if [ $? != 0 ]; then
 fi
 
 HOMEBREW_NO_AUTO_UPDATE=1
-echo "HOMEBREW_NO_AUTO_UPDATE = ?"
-echo $HOMEBREW_NO_AUTO_UPDATE
+echo "HOMEBREW_NO_AUTO_UPDATE = $HOMEBREW_NO_AUTO_UPDATE"
 read -r -p "以上配置是否正确? " response
 
 
@@ -291,7 +289,6 @@ sudo /usr/local/sbin/privoxy /usr/local/etc/privoxy/config
 # git config --global http.proxy socks5://127.0.0.1:1086
 # git config --global http.https://github.com.proxy socks5://127.0.0.1:1086
 ok
-# echo -e "已开启代理, 代理端口是否可见"
 echo "$(netstat -na | grep 8118)"
 echo "$(ps -ef | grep privoxy)"
 read -r -p "已开启代理, 代理端口是否可见" response
@@ -331,33 +328,34 @@ if [[ "$CURRENTSHELL" != "/usr/local/bin/zsh" ]]; then
   ok
 fi
 
-bot "Dotfiles Setup"
-read -r -p "symlink ./homedir/* files in ~/ (these are the dotfiles)? [y|N] " response
-if [[ $response =~ (y|yes|Y) ]]; then
-  bot "creating symlinks for project dotfiles..."
-  pushd homedir > /dev/null 2>&1
-  now=$(date +"%Y.%m.%d.%H.%M.%S")
+#  使用 mackup 将 home 目录的点文件恢复, 不再拷贝这里的.
+# bot "Dotfiles Setup"
+# read -r -p "symlink ./homedir/* files in ~/ (these are the dotfiles)? [y|N] " response
+# if [[ $response =~ (y|yes|Y) ]]; then
+#   bot "creating symlinks for project dotfiles..."
+#   pushd homedir > /dev/null 2>&1
+#   now=$(date +"%Y.%m.%d.%H.%M.%S")
 
-  for file in .*; do
-    if [[ $file == "." || $file == ".." ]]; then
-      continue
-    fi
-    running "~/$file"
-    # if the file exists:
-    if [[ -e ~/$file ]]; then
-        mkdir -p ~/.dotfiles_backup/$now
-        mv ~/$file ~/.dotfiles_backup/$now/$file
-        echo "backup saved as ~/.dotfiles_backup/$now/$file"
-    fi
-    # symlink might still exist
-    unlink ~/$file > /dev/null 2>&1
-    # create the link
-    ln -s ~/.dotfiles/homedir/$file ~/$file
-    echo -en '\tlinked';ok
-  done
+#   for file in .*; do
+#     if [[ $file == "." || $file == ".." ]]; then
+#       continue
+#     fi
+#     running "~/$file"
+#     # if the file exists:
+#     if [[ -e ~/$file ]]; then
+#         mkdir -p ~/.dotfiles_backup/$now
+#         mv ~/$file ~/.dotfiles_backup/$now/$file
+#         echo "backup saved as ~/.dotfiles_backup/$now/$file"
+#     fi
+#     # symlink might still exist
+#     unlink ~/$file > /dev/null 2>&1
+#     # create the link
+#     ln -s ~/.dotfiles/homedir/$file ~/$file
+#     echo -en '\tlinked';ok
+#   done
 
-  popd > /dev/null 2>&1
-fi
+#   popd > /dev/null 2>&1
+# fi
 
 bot "VIM Setup"
 read -r -p "Do you want to install vim plugins now? [y|N] " response
@@ -420,7 +418,7 @@ bot "installing packages from config.js..."
 node index.js
 ok
 
-#  上面的脚本里设置了必须装的, brewfile 不一定适合每个机器
+#  上面的脚本里设置了必须装的, brewfile 不一定适合每个机器, 有些东西在配置低的机器不适合装
 # bot "Now checking Brewfile for brew install..."
 
 running "cleanup homebrew"
