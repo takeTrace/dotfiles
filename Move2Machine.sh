@@ -4,10 +4,14 @@ rsync --exclude "_gsdata_/" \
 		--exclude "mackup/.Sync" \
 		--exclude "mackup/.SyncWithCloud" \
 		--exclude "mackup/Back2harddisk" \
-		--exclude "mackup/Back" \
+		--exclude "mackup/Backup" \
 		--exclude "mackup/Documents" \
 		--exclude "mackup/Movies" \
 		--exclude "mackup/Music" \
 		--exclude "mackup/Pictures" \
 		--exclude "mackup/Projects" \
+		--exclude "mackup/.git" \
+		--exclude "mackup/.goodsync" \
+    --exclude "mackup/.terEnv" \
+    --exclude ".git" \
 		-avh --no-perms . ~/.dotfiles;
