@@ -4,6 +4,7 @@ module.exports = {
     // http://conqueringthecommandline.com/book/ack_ag
     'ack',
     'ag',
+    'asimov',
     // https://github.com/wting/autojump
     'autojump',
     // alternative to `cat`: https://github.com/sharkdp/bat
@@ -43,13 +44,15 @@ module.exports = {
     // 'homebrew/dupes/screen',
     // 'tmux',
     'tree',
+    'tldr',
+    'the_silver_searcher',
     // 'ttyrec',
     // better, more recent vim
     'vim --with-client-server --with-override-system-vi',
     'watch',
     // Install wget with IRI support
     'wget --enable-iri',
-    // 'mackup'
+    'mackup',
     // zsh tool
     'zsh-autosuggestions',
     'zsh-completions',
@@ -81,9 +84,9 @@ module.exports = {
     // 'xquartz',
     // 'spectacle',
     'rectangle',
-    'android-file-transfer',
+    // 'android-file-transfer',
     'appcleaner',
-    'bitbar', // or hammerspoon
+    // 'bitbar', // or hammerspoon
     'flux',
     'baiduinput',
     // 'google-chrome',
@@ -95,7 +98,16 @@ module.exports = {
     'skim',
     // 'teamviewer',
     'firefox',
-    'zerotier-one'
+    'zerotier-one',
+    // quick look pluggins
+    "qlcolorcode",
+    "qlmarkdown",
+    "qlmobi",
+    "qlplayground",
+    "qlprettypatch",
+    "qlstephen",
+    "quicklook-jso",
+    "quicklookapk"
   ],
   gem: [
     // 'git-up'
