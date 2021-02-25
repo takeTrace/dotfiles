@@ -49,7 +49,11 @@ module.exports = {
     'watch',
     // Install wget with IRI support
     'wget --enable-iri',
-    'mackup'
+    // 'mackup'
+    // zsh tool
+    'zsh-autosuggestions',
+    'zsh-completions',
+    'zsh-syntax-highlighting'
   ],
   cask: [
     //'adium',
@@ -75,18 +79,22 @@ module.exports = {
     'visual-studio-code',
     //'vlc',
     // 'xquartz',
-    'spectacle',
+    // 'spectacle',
+    'rectangle',
     'android-file-transfer',
     'appcleaner',
     'bitbar', // or hammerspoon
     'flux',
     'baiduinput',
-    'google-chrome',
-    'vlc',
+    // 'google-chrome',
+    // 'vlc',
+    'iina',
     'itsycal',
-    'keeweb',
+    // 'keeweb',
+    'keepassxc',
     'skim',
-    'teamviewer',
+    // 'teamviewer',
+    'firefox',
     'zerotier-one'
   ],
   gem: [
