@@ -357,36 +357,36 @@ fi
 #   popd > /dev/null 2>&1
 # fi
 
-bot "VIM Setup"
-read -r -p "Do you want to install vim plugins now? [y|N] " response
-if [[ $response =~ (y|yes|Y) ]];then
-  bot "Installing vim plugins"
-  # cmake is required to compile vim bundle YouCompleteMe
-  # require_brew cmake
-  vim +PluginInstall +qall > /dev/null 2>&1
-  ok
-else
-  ok "skipped. Install by running :PluginInstall within vim"
-fi
+# bot "VIM Setup"
+# read -r -p "Do you want to install vim plugins now? [y|N] " response
+# if [[ $response =~ (y|yes|Y) ]];then
+#   bot "Installing vim plugins"
+#   # cmake is required to compile vim bundle YouCompleteMe
+#   # require_brew cmake
+#   vim +PluginInstall +qall > /dev/null 2>&1
+#   ok
+# else
+#   ok "skipped. Install by running :PluginInstall within vim"
+# fi
 
-read -r -p "Install fonts? [y|N] " response
-if [[ $response =~ (y|yes|Y) ]];then
-  bot "installing fonts"
-  # need fontconfig to install/build fonts
-  require_brew fontconfig
-  ./fonts/install.sh
-  brew tap homebrew/cask-fonts
-  require_cask font-fontawesome
-  require_cask font-awesome-terminal-fonts
-  require_cask font-hack
-  require_cask font-inconsolata-dz-for-powerline
-  require_cask font-inconsolata-g-for-powerline
-  require_cask font-inconsolata-for-powerline
-  require_cask font-roboto-mono
-  require_cask font-roboto-mono-for-powerline
-  require_cask font-source-code-pro
-  ok
-fi
+# read -r -p "Install fonts? [y|N] " response
+# if [[ $response =~ (y|yes|Y) ]];then
+#   bot "installing fonts"
+#   # need fontconfig to install/build fonts
+#   require_brew fontconfig
+#   ./fonts/install.sh
+#   brew tap homebrew/cask-fonts
+#   require_cask font-fontawesome
+#   require_cask font-awesome-terminal-fonts
+#   require_cask font-hack
+#   require_cask font-inconsolata-dz-for-powerline
+#   require_cask font-inconsolata-g-for-powerline
+#   require_cask font-inconsolata-for-powerline
+#   require_cask font-roboto-mono
+#   require_cask font-roboto-mono-for-powerline
+#   require_cask font-source-code-pro
+#   ok
+# fi
 
 # if [[ -d "/Library/Ruby/Gems/2.0.0" ]]; then
 #   running "Fixing Ruby Gems Directory Permissions"
