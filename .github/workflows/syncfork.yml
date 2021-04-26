@@ -11,5 +11,5 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           owner: atomantic
-          base: master
-          head: master
+          base: main
+          head: main
