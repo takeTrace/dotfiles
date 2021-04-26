@@ -25,13 +25,15 @@ bot "--------------------------------- 重写 hosts ----------------------------
 # ###########################################################
 # /etc/hosts -- spyware/ad blocking
 # ###########################################################
-action "cp /etc/hosts /etc/hosts.backup"
-sudo cp /etc/hosts /etc/hosts.backup
-ok
-action "cp ./configs/hosts /etc/hosts"
-sudo cp ./configs/hosts /etc/hosts
-ok
-bot "Your /etc/hosts file has been updated. Last version is saved in /etc/hosts.backup"
+if [[ -e /etc/hosts.backup ]]; then
+  action "cp /etc/hosts /etc/hosts.backup"
+  sudo cp /etc/hosts /etc/hosts.backup
+  ok
+  action "cp ./configs/hosts /etc/hosts"
+  sudo cp ./configs/hosts /etc/hosts
+  ok
+  bot "Your /etc/hosts file has been updated. Last version is saved in /etc/hosts.backup"
+fi
 
 
 bot "--------------------------------- Git Config ---------------------------------"
@@ -135,14 +137,28 @@ export ALL_PROXY=socks5://127.0.0.1:1086
 echo "ALL_PROXY=: $ALL_PROXY"
 read -r -p "是否配置了? " response
 
+# --------------------------------  本地安装 Command Line Tool --------------------------------
+# 当前: 11.5  版本
+open ./BaseEnvFiles
+
+echo "install Command Line Tool from your self choice depands on what version of your MacOS"
+
+read -r -p "安装完成后直接回车, 接下来将本地安装 HomeBrew? " response
+
 # -------------------------------- 安装 HomeBrew --------------------------------
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# use local
+if [[ ! $(command -v brew) ]]; then
+  sh HomebrewLocal/localInstall.sh
+fi
+
 HOMEBREW_NO_AUTO_UPDATE=1
 echo "HOMEBREW_NO_AUTO_UPDATE = $HOMEBREW_NO_AUTO_UPDATE"
 read -r -p "以上配置是否正确? " response
 
 
 # -------------------------------- 终端翻墙 --------------------------------
+# if [[ ! $(command -v privoxy) ]]; then
 privoxy_bin=$(which privoxy) 2>&1 > /dev/null
 if [[ $? != 0 ]]; then
   action "安装 privoxy 代理"
