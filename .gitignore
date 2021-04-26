@@ -26,7 +26,8 @@ Projects/
 *._gs
 *.gsl
 _gsdata_/
-HomebrewLocal/
+HomebrewLocal/Caches
+HomebrewLocal/Homebrew
 BaseEnvFiles/
 
 # ignore Private files(note: the files end .private)
