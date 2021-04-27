@@ -375,7 +375,7 @@ sudo defaults write /Library/Preferences/com.apple.alf globalstate -int 1
 
 # 防火墙
 # Enable firewall stealth mode (no response to ICMP / ping requests)
-# Source: https://support.apple.com/kb/PH18642
+# Source: https://support.apple.com/guide/mac-help/use-stealth-mode-to-keep-your-mac-more-secure-mh17133/mac
 #sudo defaults write /Library/Preferences/com.apple.alf stealthenabled -int 1
 sudo defaults write /Library/Preferences/com.apple.alf stealthenabled -int 1
 
@@ -403,13 +403,19 @@ sudo defaults write /Library/Preferences/com.apple.loginwindow GuestEnabled -boo
 # SSD-specific tweaks                                                         #
 ###############################################################################
 
-# 删除睡眠镜像文件
-running "Remove the sleep image file to save disk space"
-sudo rm -rf /Private/var/vm/sleepimage;ok
-running "Create a zero-byte file instead"
-sudo touch /Private/var/vm/sleepimage;ok
-running "…and make sure it can’t be rewritten"
-sudo chflags uchg /Private/var/vm/sleepimage;ok
+# disablelocal is no longer used, check man tmutil for more info
+# running "Disable local Time Machine snapshots"
+# sudo tmutil disablelocal;ok
+
+# running "Disable hibernation (speeds up entering sleep mode)"
+# sudo pmset -a hibernatemode 0;ok
+
+# running "Remove the sleep image file to save disk space"
+# sudo rm -rf /Private/var/vm/sleepimage;ok
+# running "Create a zero-byte file instead"
+# sudo touch /Private/var/vm/sleepimage;ok
+# running "…and make sure it can’t be rewritten"
+# sudo chflags uchg /Private/var/vm/sleepimage;ok
 
 ################################################
 # Optional / Experimental                      #
@@ -485,8 +491,16 @@ defaults write com.apple.print.PrintingPrefs "Quit When Finished" -bool true;ok
 running "Disable the “Are you sure you want to open this application?” dialog"
 defaults write com.apple.LaunchServices LSQuarantine -bool false;ok
 
-running "Disable automatic termination of inactive apps"
-defaults write NSGlobalDomain NSDisableAutomaticTermination -bool true;ok
+# https://github.com/atomantic/dotfiles/issues/30#issuecomment-514589462
+#running "Remove duplicates in the “Open With” menu (also see 'lscleanup' alias)"
+#/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user;ok
+
+running "Display ASCII control characters using caret notation in standard text views"
+# Try e.g. `cd /tmp; unidecode "\x{0000}" > cc.txt; open -e cc.txt`
+defaults write NSGlobalDomain NSTextShowsControlCharacters -bool true;ok
+
+# running "Disable automatic termination of inactive apps"
+# defaults write NSGlobalDomain NSDisableAutomaticTermination -bool true;ok
 
 running "Disable the crash reporter"
 defaults write com.apple.CrashReporter DialogType -string "none";ok
@@ -495,9 +509,17 @@ defaults write com.apple.CrashReporter DialogType -string "none";ok
 running "Reveal IP, hostname, OS, etc. when clicking clock in login window"
 sudo defaults write /Library/Preferences/com.apple.loginwindow AdminHostInfo HostName;ok
 
-# 输入时禁用智能引号
-running "Disable smart quotes as they’re annoying when typing code"
-defaults write NSGlobalDomain NSAutomaticQuoteSubstitutionEnabled -bool false;ok
+# running "Restart automatically if the computer freezes"
+# sudo systemsetup -setrestartfreeze on;ok
+
+# running "Never go into computer sleep mode"
+# sudo systemsetup -setcomputersleep Off > /dev/null;ok
+
+running "Check for software updates daily, not just once per week"
+defaults write com.apple.SoftwareUpdate ScheduleFrequency -int 1;ok
+
+# running "Disable Notification Center and remove the menu bar icon"
+# launchctl unload -w /System/Library/LaunchAgents/com.apple.notificationcenterui.plist > /dev/null 2>&1;ok
 
 # 输入时禁用 智能dash 号
 running "Disable smart dashes as they’re annoying when typing code"
@@ -529,6 +551,12 @@ defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false;ok
 running "Set a blazingly fast keyboard repeat rate"
 defaults write NSGlobalDomain KeyRepeat -int 2
 defaults write NSGlobalDomain InitialKeyRepeat -int 10;ok
+
+running "Set language and text formats (english/US)"
+defaults write NSGlobalDomain AppleLanguages -array "en"
+defaults write NSGlobalDomain AppleLocale -string "en_US@currency=USD"
+defaults write NSGlobalDomain AppleMeasurementUnits -string "Centimeters"
+defaults write NSGlobalDomain AppleMetricUnits -bool true;ok
 
 running "Disable auto-correct"
 defaults write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false;ok
@@ -870,6 +898,16 @@ defaults write com.apple.appstore ShowDebugMenu -bool true;ok
 ###############################################################################
 bot "Messages"
 ###############################################################################
+
+# running "Disable automatic emoji substitution (i.e. use plain text smileys)"
+# defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "automaticEmojiSubstitutionEnablediMessage" -bool false;ok
+
+# 输入时禁用智能引号
+running "Disable smart quotes as it’s annoying for messages that contain code"
+defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "automaticQuoteSubstitutionEnabled" -bool false;ok
+
+# running "Disable continuous spell checking"
+# defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "continuousSpellCheckingEnabled" -bool false;ok
 
 read -r -p "是否要重启? killAll ?" response
 killall cfprefsd

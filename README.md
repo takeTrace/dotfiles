@@ -10,8 +10,6 @@ Now this repo is setup for a new Mac, It won't set up dotfiles for mac.
 
 About dotfiles, I use [mackup](https://github.com/lra/mackup) to backup and restore, plus use this to symlink for big files, so I can take over all I need when I change Mac Or backup my own file.
 
-## setup
-
 ### 1. install
 
 when download this repo done, put it to $HOME directory, and run `install.sh`; it will setup MacOS some preference, make sure you are clear what the shell file do before run the command. **the file must have something you don't want to have.**
